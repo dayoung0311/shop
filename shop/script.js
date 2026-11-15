@@ -48,7 +48,7 @@ function emptyHTML(icon, title, text, extra = "") {
     <div class="empty__icon" aria-hidden="true">${icon}</div>
     <h2 class="empty__title">${title}</h2>
     <p class="empty__text">${text}</p>
-    ${extra || `<a class="btn" href="#/">쇼핑 계속하기</a>`}
+    ${extra || `<a class="btn" href="/#/">쇼핑 계속하기</a>`}
   </div>`;
 }
 
@@ -219,7 +219,7 @@ function renderProductArea() {
       ${list
         .map(
           (p) => `<li>
-            <a class="card" href="#/product/${p.id}">
+            <a class="card" href="/products/${p.id}">
               ${thumbHTML(p, true)}
               <p class="card__name">${esc(p.name)}</p>
               ${priceHTML(p)}
@@ -242,7 +242,7 @@ function renderDetail(id) {
   const sel = { color: null, size: p.sizes.length === 1 ? p.sizes[0] : null, qty: 1 };
 
   $app.innerHTML = `
-    <a class="back" href="#/">← 목록으로</a>
+    <a class="back" href="/#/">← 목록으로</a>
     <article class="detail">
       ${thumbHTML(p, true)}
       <div>
@@ -319,7 +319,7 @@ function renderDetail(id) {
   addBtn.addEventListener("click", () => {
     const capped = addToCart(p.id, sel.size, sel.color, sel.qty);
     const msg = capped ? `한 옵션당 최대 ${MAX_QTY}개까지 담을 수 있어요.` : "장바구니에 담았습니다.";
-    showToast(`<span>${msg}</span><a href="#/cart">장바구니 보기</a>`);
+    showToast(`<span>${msg}</span><a href="/#/cart">장바구니 보기</a>`);
   });
 
   sync();
@@ -349,11 +349,11 @@ function renderCart() {
             .map((i) => {
               const p = findProduct(i.id);
               return `<li class="cart-item">
-                <a href="#/product/${p.id}">${thumbHTML(p)}</a>
+                <a href="/products/${p.id}">${thumbHTML(p)}</a>
                 <div>
                   <div class="cart-item__top">
                     <div>
-                      <a class="cart-item__name" href="#/product/${p.id}">${esc(p.name)}</a>
+                      <a class="cart-item__name" href="/products/${p.id}">${esc(p.name)}</a>
                       <p class="cart-item__opt">${esc(i.color)} / ${esc(i.size)}</p>
                     </div>
                     <button class="remove" data-remove="${esc(i.key)}" aria-label="${esc(p.name)} 삭제">×</button>
@@ -378,7 +378,7 @@ function renderCart() {
         <div class="summary__row"><span>배송비</span><span>${shipping ? won(shipping) : "무료"}</span></div>
         <div class="summary__row summary__row--total"><span>결제 예정 금액</span><span>${won(total)}</span></div>
         <p class="summary__note">${remain > 0 ? `${won(remain)} 더 담으면 무료배송!` : "무료배송 적용되었습니다."}</p>
-        <a class="btn btn--block" href="#/checkout">주문하기</a>
+        <a class="btn btn--block" href="/#/checkout">주문하기</a>
       </aside>
     </div>
   `;
@@ -406,7 +406,7 @@ function renderCheckout() {
   const { subtotal, shipping, total } = cartTotals(cart);
 
   $app.innerHTML = `
-    <a class="back" href="#/cart">← 장바구니로</a>
+    <a class="back" href="/#/cart">← 장바구니로</a>
     <h1 class="page-title">주문/결제</h1>
     <div class="cart-layout">
       <form class="form" id="orderForm" novalidate>
@@ -586,18 +586,32 @@ function renderComplete(orderNo) {
         ${matched && order.method ? `<div class="summary__row"><span>결제수단</span><strong>${esc(order.method)}</strong></div>` : ""}
         ${matched && order.receiptUrl ? `<div class="summary__row"><span>영수증</span><a href="${esc(order.receiptUrl)}" target="_blank" rel="noopener">보기</a></div>` : ""}
       </div>
-      <a class="btn btn--block" href="#/">쇼핑 계속하기</a>
+      <a class="btn btn--block" href="/#/">쇼핑 계속하기</a>
     </section>
   `;
 }
 
 // ===== Router =====
+// 상품 상세는 검색엔진이 색인할 수 있도록 실제 경로(/products/:id)를 쓰고,
+// 장바구니·주문 같은 비공개 화면은 기존처럼 해시 라우팅을 쓴다.
 function router() {
+  const productPath = location.pathname.match(/^\/products\/(\d+)\/?$/);
   const hash = location.hash.replace(/^#/, "") || "/";
   const parts = hash.split("/").filter(Boolean);
 
-  if (parts.length === 0) renderHome();
-  else if (parts[0] === "product" && parts.length === 2) renderDetail(parts[1]);
+  // 예전 해시 주소(#/product/3)는 정식 주소로 옮긴다.
+  if (!productPath && parts[0] === "product" && parts.length === 2) {
+    location.replace(`/products/${encodeURIComponent(parts[1])}`);
+    return;
+  }
+
+  const homeInfo = document.getElementById("homeInfo");
+  if (homeInfo) homeInfo.hidden = Boolean(productPath) || parts.length > 0;
+
+  const isRoot = location.pathname === "/" || location.pathname.endsWith("/index.html");
+  if (productPath) renderDetail(productPath[1]);
+  else if (!isRoot) $app.innerHTML = emptyHTML("🧭", "페이지를 찾을 수 없습니다", "주소가 잘못되었거나 없는 페이지예요.");
+  else if (parts.length === 0) renderHome();
   else if (parts[0] === "cart" && parts.length === 1) renderCart();
   else if (parts[0] === "checkout" && parts.length === 1) renderCheckout();
   else if (parts[0] === "complete" && parts.length === 2) renderComplete(decodeURIComponent(parts[1]));

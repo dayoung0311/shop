@@ -35,12 +35,18 @@
 - **서버** (`server.js`): `shop/` 정적 제공 + `GET /api/config`(클라이언트 키) + `POST /api/orders`(서버가 금액 계산, 주문번호 발급) + `POST /api/confirm`(금액 검증 후 토스 결제 승인 API 호출). 시크릿 키는 서버에서만 사용.
 - **장바구니**: `localStorage`(키 `loom-cart`)에 저장. 저장소 접근 실패 시 메모리로 동작.
 
+### SEO / AEO / GEO
+
+- `seo.js`: `/`, `/products/:id`를 서버에서 미리 렌더링 (title·description·canonical·OG·JSON-LD `Product`/`BreadcrumbList`/`OnlineStore`/`WebSite`/`ItemList`/`FAQPage`).
+- `/robots.txt`, `/sitemap.xml`(이미지 포함), `/llms.txt` 동적 생성. `success.html`/`fail.html`/`/api`는 noindex.
+- 환경변수: `SITE_URL`(배포 주소, 필수), `GOOGLE_SITE_VERIFICATION`, `NAVER_SITE_VERIFICATION`.
+
 ### 라우트
 
 | 해시 | 화면 |
 |---|---|
 | `#/` | 메인 (배너 + 상품 목록) |
-| `#/product/:id` | 상품 상세 |
+| `/products/:id` | 상품 상세 (실제 경로, 서버 렌더링 — 검색 색인용. 예전 `#/product/:id`는 자동 이동) |
 | `#/cart` | 장바구니 |
 | `#/checkout` | 주문/결제 폼 (토스 결제 UI) |
 | `#/complete/:orderNo` | 주문 완료 |

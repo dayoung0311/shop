@@ -6,12 +6,16 @@ const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
 const { PRODUCTS, FREE_SHIPPING_MIN, SHIPPING_FEE, MAX_QTY } = require("./shop/products.js");
+const seo = require("./seo.js");
 
 // 토스페이먼츠 문서에 공개된 주문서형 결제 테스트 키 (실제 돈이 나가지 않음).
 // 내 상점 키를 쓰려면 환경변수로 덮어쓰기. 라이브 키(live_*)는 이 데모에서 쓰지 않는다.
 const CLIENT_KEY = process.env.TOSS_CLIENT_KEY || "test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm";
 const SECRET_KEY = process.env.TOSS_SECRET_KEY || "test_gsk_docs_OaPz8L5KdmQXkzRz3y47BMw6";
 const PORT = Number(process.env.PORT) || 3000;
+// 배포 주소 (canonical·sitemap 절대 URL용). 예: SITE_URL=https://loom.example.com
+// 없으면 요청 주소로 추정한다 — 배포 시에는 반드시 지정할 것.
+const SITE_URL = (process.env.SITE_URL || "").replace(/\/+$/, "");
 
 if (!CLIENT_KEY.startsWith("test_") || !SECRET_KEY.startsWith("test_")) {
   console.error("이 데모는 테스트 키(test_*)만 허용합니다.");
@@ -19,7 +23,17 @@ if (!CLIENT_KEY.startsWith("test_") || !SECRET_KEY.startsWith("test_")) {
 }
 
 const app = express();
+app.set("trust proxy", true); // Render·Railway 등 프록시 뒤에서 https 주소를 올바르게 인식
 app.use(express.json({ limit: "20kb" }));
+
+const baseUrl = (req) => SITE_URL || `${req.protocol}://${req.get("host")}`;
+
+// API 응답은 검색 결과에 노출하지 않는다.
+app.use("/api", (req, res, next) => {
+  res.set("X-Robots-Tag", "noindex");
+  next();
+});
+
 
 // 주문 저장소 (데모용 메모리 저장 — 서버 재시작 시 사라짐)
 const orders = new Map();
@@ -117,7 +131,21 @@ app.post("/api/confirm", async (req, res) => {
   }
 });
 
-app.use(express.static(path.join(__dirname, "shop")));
+// ===== SEO / AEO / GEO =====
+app.get("/", (req, res) => res.type("html").send(seo.renderHome(baseUrl(req))));
+app.get("/index.html", (req, res) => res.redirect(301, "/"));
+app.get("/products/:id", (req, res) => {
+  const html = seo.renderProduct(baseUrl(req), req.params.id);
+  if (!html) return res.status(404).type("html").send(seo.renderNotFound(baseUrl(req)));
+  res.type("html").send(html);
+});
+app.get("/robots.txt", (req, res) => res.type("text/plain").send(seo.robotsTxt(baseUrl(req))));
+app.get("/sitemap.xml", (req, res) => res.type("application/xml").send(seo.sitemapXml(baseUrl(req))));
+app.get("/llms.txt", (req, res) => res.type("text/plain; charset=utf-8").send(seo.llmsTxt(baseUrl(req))));
+
+app.use(express.static(path.join(__dirname, "shop"), { index: false }));
+
+app.use((req, res) => res.status(404).type("html").send(seo.renderNotFound(baseUrl(req))));
 
 app.listen(PORT, () => {
   console.log(`LOOM 쇼핑몰: http://localhost:${PORT}`);

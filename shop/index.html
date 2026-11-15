@@ -4,20 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LOOM</title>
-  <link rel="stylesheet" href="style.css" />
+  <!--SEO_HEAD-->
+  <meta name="theme-color" content="#111111" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://images.unsplash.com" />
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <header class="header">
     <div class="header__inner">
-      <a href="#/" class="logo">LOOM</a>
-      <a href="#/cart" class="cart-link" aria-label="장바구니">
+      <a href="/#/" class="logo">LOOM</a>
+      <a href="/#/cart" class="cart-link" aria-label="장바구니">
         장바구니
         <span class="badge" id="cartBadge" hidden>0</span>
       </a>
     </div>
   </header>
 
-  <main id="app" class="main" tabindex="-1"></main>
+  <main id="app" class="main" tabindex="-1"><!--SSR_MAIN--></main>
+  <!--HOME_INFO-->
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
@@ -26,7 +31,7 @@
   </footer>
 
   <script src="https://js.tosspayments.com/v2/standard"></script>
-  <script src="products.js"></script>
-  <script src="script.js"></script>
+  <script src="/products.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>
