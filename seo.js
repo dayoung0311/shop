@@ -3,7 +3,7 @@
 // - 메타 태그, Open Graph, JSON-LD 구조화 데이터, robots.txt, sitemap.xml, llms.txt 생성.
 const fs = require("fs");
 const path = require("path");
-const { PRODUCTS, FREE_SHIPPING_MIN, SHIPPING_FEE } = require("./shop/products.js");
+const { PRODUCTS, FREE_SHIPPING_MIN, SHIPPING_FEE, MAX_QTY } = require("./shop/products.js");
 
 const SITE_NAME = "LOOM";
 const SITE_TAGLINE = "덜어낸 디자인, 오래 입는 옷";
@@ -12,29 +12,52 @@ const SITE_DESCRIPTION =
 
 const CATEGORY_LABEL = { top: "상의", bottom: "하의", outer: "아우터", acc: "액세서리" };
 
-// 화면에 보이는 FAQ와 FAQPage 구조화 데이터가 같은 내용을 쓴다 (구글 가이드라인: 보이는 내용과 일치해야 함).
-const FAQ = [
+// FAQ 원천 데이터. /faq 페이지(전체)와 홈(home: true 항목 미리보기), FAQPage JSON-LD, llms.txt가 모두 이 배열을 쓴다.
+// FAQPage 구조화 데이터는 /faq 한 곳에만 넣는다 (구글 가이드라인: 화면에 보이는 내용과 일치, 같은 FAQ를 여러 페이지에 마크업하지 않음).
+const FAQ_GROUPS = [
   {
-    q: "배송비는 얼마인가요?",
-    a: `주문 금액이 ${FREE_SHIPPING_MIN.toLocaleString("ko-KR")}원 이상이면 무료배송이고, 그 미만이면 배송비 ${SHIPPING_FEE.toLocaleString("ko-KR")}원이 붙습니다.`,
+    id: "order",
+    title: "주문·결제",
+    items: [
+      { home: true, q: "회원가입을 해야 주문할 수 있나요?", a: "아니요. 회원가입 없이 장바구니에 담고 주문자 정보만 입력하면 바로 결제할 수 있습니다." },
+      { home: true, q: "어떤 결제 수단을 쓸 수 있나요?", a: "토스페이먼츠 결제창에서 카드, 계좌이체, 간편결제 등을 고를 수 있습니다. 이 사이트는 데모라 테스트 모드로만 동작하며 실제로 돈이 빠져나가지 않습니다." },
+      { q: "결제 도중 창을 닫았거나 결제가 실패했어요.", a: "결제가 끝나지 않으면 장바구니는 그대로 남아 있습니다. 실패 안내 화면의 '다시 결제하기'를 누르거나 장바구니에서 다시 주문하면 됩니다." },
+      { q: "주문 내역은 어디서 확인하나요?", a: "결제가 끝나면 완료 화면에 주문번호와 결제 금액이 표시됩니다. 회원 기능이 없어 따로 주문 조회 페이지는 없습니다." },
+    ],
   },
   {
-    q: "어떤 결제 수단을 쓸 수 있나요?",
-    a: "토스페이먼츠 결제창에서 카드, 계좌이체, 간편결제 등을 고를 수 있습니다. 이 사이트는 데모라 테스트 모드로만 동작하며 실제로 돈이 빠져나가지 않습니다.",
+    id: "shipping",
+    title: "배송",
+    items: [
+      { home: true, q: "배송비는 얼마인가요?", a: `주문 금액이 ${FREE_SHIPPING_MIN.toLocaleString("ko-KR")}원 이상이면 무료배송이고, 그 미만이면 배송비 ${SHIPPING_FEE.toLocaleString("ko-KR")}원이 붙습니다.` },
+      { q: "무료배송 기준 금액은 할인 전 가격으로 계산하나요?", a: `아니요. 할인가가 적용된 상품 금액 합계가 ${FREE_SHIPPING_MIN.toLocaleString("ko-KR")}원 이상이어야 무료배송입니다. 장바구니 화면에서 무료배송까지 남은 금액을 알려 드립니다.` },
+    ],
   },
   {
-    q: "실제로 상품을 주문하고 받을 수 있나요?",
-    a: "아니요. LOOM은 수업 과제용 데모 쇼핑몰이라 주문은 테스트로만 처리되고 실제 배송은 없습니다.",
+    id: "product",
+    title: "상품·사이즈",
+    items: [
+      { home: true, q: "사이즈는 어떻게 고르나요?", a: "의류는 S, M, L, XL 네 가지 사이즈가 있고, 가방·비니·벨트 같은 액세서리는 FREE 사이즈 하나입니다. 상품 상세 페이지에서 색상과 사이즈를 고른 뒤 장바구니에 담으면 됩니다." },
+      { q: "한 번에 몇 개까지 살 수 있나요?", a: `같은 상품의 같은 색상·사이즈 조합은 최대 ${MAX_QTY}개까지 담을 수 있습니다. 색상이나 사이즈가 다르면 따로 담을 수 있습니다.` },
+      { q: "장바구니에 담은 상품은 언제까지 남아 있나요?", a: "장바구니는 지금 쓰는 브라우저에 저장되어 창을 닫아도 남아 있습니다. 다른 기기나 다른 브라우저와는 공유되지 않습니다." },
+    ],
   },
   {
-    q: "사이즈는 어떻게 고르나요?",
-    a: "의류는 S, M, L, XL 네 가지 사이즈가 있고, 가방·비니·벨트 같은 액세서리는 FREE 사이즈 하나입니다. 상품 상세 페이지에서 색상과 사이즈를 고른 뒤 장바구니에 담으면 됩니다.",
+    id: "return",
+    title: "교환·반품",
+    items: [
+      { q: "교환이나 반품을 할 수 있나요?", a: "LOOM은 실제 배송을 하지 않는 데모 쇼핑몰이라 교환·반품 절차가 없습니다. 결제도 테스트 모드라 환불할 금액이 생기지 않습니다." },
+    ],
   },
   {
-    q: "회원가입을 해야 주문할 수 있나요?",
-    a: "아니요. 회원가입 없이 장바구니에 담고 주문자 정보만 입력하면 바로 결제할 수 있습니다.",
+    id: "about",
+    title: "사이트 안내",
+    items: [
+      { home: true, q: "실제로 상품을 주문하고 받을 수 있나요?", a: "아니요. LOOM은 수업 과제용 데모 쇼핑몰이라 주문은 테스트로만 처리되고 실제 배송은 없습니다." },
+    ],
   },
 ];
+const FAQ = FAQ_GROUPS.flatMap((g) => g.items);
 
 const TEMPLATE = fs.readFileSync(path.join(__dirname, "shop", "index.html"), "utf8");
 
@@ -138,9 +161,34 @@ function homeInfoHTML() {
     <h2 class="info__title" id="faqTitle">자주 묻는 질문</h2>
     <p class="info__lead">${esc(SITE_DESCRIPTION)}</p>
     <div class="faq">
-      ${FAQ.map((f) => `<details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join("\n      ")}
+      ${FAQ.filter((f) => f.home).map(faqItemHTML).join("\n      ")}
     </div>
+    <a class="info__more" href="/faq">자주 묻는 질문 전체 보기 →</a>
   </section>`;
+}
+
+const faqItemHTML = (f) => `<details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`;
+
+function faqMainHTML() {
+  return `
+    <nav aria-label="breadcrumb" class="back"><a href="/#/">홈</a> › 자주 묻는 질문</nav>
+    <h1 class="page-title">자주 묻는 질문</h1>
+    <p class="info__lead">주문·배송·사이즈에 대해 자주 받는 질문을 모았습니다. LOOM은 수업 과제용 데모 쇼핑몰이라 결제는 토스페이먼츠 테스트 모드로만 처리되고 실제 배송은 없습니다.</p>
+    <nav class="faq-nav" aria-label="질문 분류">
+      ${FAQ_GROUPS.map((g) => `<a href="#${g.id}">${esc(g.title)}</a>`).join("")}
+    </nav>
+    ${FAQ_GROUPS.map(
+      (g) => `<section class="faq-group" id="${g.id}" aria-labelledby="${g.id}-title">
+      <h2 class="faq-group__title" id="${g.id}-title">${esc(g.title)}</h2>
+      <div class="faq">
+        ${g.items.map(faqItemHTML).join("\n        ")}
+      </div>
+    </section>`
+    ).join("\n    ")}
+    <div class="faq-cta">
+      <p>원하는 답을 찾지 못했나요? 상품 상세 페이지에서 색상·사이즈·배송 정보를 확인할 수 있어요.</p>
+      <a class="btn" href="/#/">상품 둘러보기</a>
+    </div>`;
 }
 
 function productMainHTML(p) {
@@ -227,15 +275,44 @@ function renderHome(base) {
             name: `${SITE_NAME} 전체 상품`,
             itemListElement: PRODUCTS.map((p, i) => ({ "@type": "ListItem", position: i + 1, url: productUrl(base, p), name: p.name })),
           },
-          {
-            "@type": "FAQPage",
-            mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
-          },
         ],
       },
     ],
   });
   return fill(TEMPLATE, { head, main: homeMainHTML(), homeInfo: homeInfoHTML() });
+}
+
+function renderFaq(base) {
+  const url = `${base}/faq`;
+  const head = headTags({
+    base,
+    title: `자주 묻는 질문 | ${SITE_NAME}`,
+    description: `${SITE_NAME} 주문·결제, 배송비, 사이즈, 교환·반품에 대한 자주 묻는 질문과 답변. ${won(FREE_SHIPPING_MIN)} 이상 무료배송, 회원가입 없이 주문 가능.`,
+    canonical: url,
+    ld: [
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "FAQPage",
+            "@id": `${url}#faq`,
+            url,
+            inLanguage: "ko-KR",
+            isPartOf: { "@id": `${base}/#website` },
+            mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+          },
+          {
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "홈", item: `${base}/` },
+              { "@type": "ListItem", position: 2, name: "자주 묻는 질문", item: url },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  return fill(TEMPLATE, { head, main: faqMainHTML() });
 }
 
 function renderProduct(base, id) {
@@ -292,6 +369,7 @@ function sitemapXml(base) {
   const latest = PRODUCTS.map((p) => p.createdAt).sort().at(-1);
   const urls = [
     `<url><loc>${base}/</loc><lastmod>${latest}</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>`,
+    `<url><loc>${base}/faq</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>`,
     ...PRODUCTS.map(
       (p) =>
         `<url><loc>${productUrl(base, p)}</loc><lastmod>${p.createdAt}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority>` +
@@ -335,13 +413,14 @@ ${byCat.join("\n\n")}
 
 ## 자주 묻는 질문
 
-${FAQ.map((f) => `- **${f.q}** ${f.a}`).join("\n")}
+${FAQ_GROUPS.map((g) => `### ${g.title}\n\n${g.items.map((f) => `- **${f.q}** ${f.a}`).join("\n")}`).join("\n\n")}
 
 ## 기타
 
 - [홈](${base}/)
+- [자주 묻는 질문](${base}/faq)
 - [사이트맵](${base}/sitemap.xml)
 `;
 }
 
-module.exports = { renderHome, renderProduct, renderNotFound, robotsTxt, sitemapXml, llmsTxt };
+module.exports = { renderHome, renderFaq, renderProduct, renderNotFound, robotsTxt, sitemapXml, llmsTxt };

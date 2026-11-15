@@ -134,6 +134,7 @@ app.post("/api/confirm", async (req, res) => {
 // ===== SEO / AEO / GEO =====
 app.get("/", (req, res) => res.type("html").send(seo.renderHome(baseUrl(req))));
 app.get("/index.html", (req, res) => res.redirect(301, "/"));
+app.get("/faq", (req, res) => res.type("html").send(seo.renderFaq(baseUrl(req)))); // /faq/ 도 여기로 옴 (canonical은 /faq)
 app.get("/products/:id", (req, res) => {
   const html = seo.renderProduct(baseUrl(req), req.params.id);
   if (!html) return res.status(404).type("html").send(seo.renderNotFound(baseUrl(req)));

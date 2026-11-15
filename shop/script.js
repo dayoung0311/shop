@@ -595,6 +595,9 @@ function renderComplete(orderNo) {
 // 상품 상세는 검색엔진이 색인할 수 있도록 실제 경로(/products/:id)를 쓰고,
 // 장바구니·주문 같은 비공개 화면은 기존처럼 해시 라우팅을 쓴다.
 function router() {
+  // /faq 는 서버(seo.js)가 그린 정적 내용을 그대로 쓴다. 해시는 분류 앵커(#shipping 등)라 다시 그리지 않는다.
+  if (/^\/faq\/?$/.test(location.pathname)) return;
+
   const productPath = location.pathname.match(/^\/products\/(\d+)\/?$/);
   const hash = location.hash.replace(/^#/, "") || "/";
   const parts = hash.split("/").filter(Boolean);
