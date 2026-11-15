@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>결제 승인 중 · LOOM</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="header__inner">
+      <a href="/#/" class="logo">LOOM</a>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="complete" id="status" aria-live="polite">
+      <h1 class="page-title">결제를 승인하고 있어요</h1>
+      <p class="empty__text">잠시만 기다려 주세요. 창을 닫지 마세요.</p>
+    </section>
+  </main>
+
+  <script>
+    // 토스페이먼츠 인증 성공 → 서버에 승인 요청 → 완료 화면으로 이동
+    const CART_KEY = "loom-cart";
+    const ORDER_KEY = "loom-last-order";
+    const PENDING_KEY = "loom-pending-order";
+    const $status = document.getElementById("status");
+    const esc = (s) =>
+      String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    function showError(message) {
+      document.title = "결제 실패 · LOOM";
+      $status.innerHTML = `
+        <div class="complete__check complete__check--fail" aria-hidden="true">!</div>
+        <h1 class="page-title">결제를 완료하지 못했어요</h1>
+        <p class="empty__text">${esc(message)}</p>
+        <a class="btn btn--block" href="/#/checkout">다시 결제하기</a>
+      `;
+    }
+
+    (async () => {
+      const q = new URLSearchParams(location.search);
+      const paymentKey = q.get("paymentKey");
+      const orderId = q.get("orderId");
+      const amount = Number(q.get("amount"));
+      if (!paymentKey || !orderId || !amount) return showError("결제 정보가 올바르지 않습니다.");
+
+      try {
+        const res = await fetch("/api/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentKey, orderId, amount }),
+        });
+        const data = await res.json();
+        if (!res.ok) return showError(`${data.message} (${data.code})`);
+
+        let name = "";
+        try {
+          const pending = JSON.parse(sessionStorage.getItem(PENDING_KEY) || "null");
+          if (pending && pending.orderId === orderId) name = pending.name;
+          sessionStorage.removeItem(PENDING_KEY);
+          sessionStorage.setItem(
+            ORDER_KEY,
+            JSON.stringify({ orderNo: data.orderId, total: data.amount, name, method: data.method, receiptUrl: data.receiptUrl })
+          );
+          localStorage.setItem(CART_KEY, "[]");
+        } catch {
+          /* 저장소를 못 써도 결제는 완료됨 */
+        }
+        location.replace(`/#/complete/${encodeURIComponent(data.orderId)}`);
+      } catch {
+        showError("서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      }
+    })();
+  </script>
+</body>
+</html>

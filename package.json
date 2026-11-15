@@ -1,0 +1,13 @@
+{
+  "name": "loom-shop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LOOM 데모 쇼핑몰 + 토스페이먼츠 테스트 결제 서버",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
